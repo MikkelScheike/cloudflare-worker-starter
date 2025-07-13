@@ -1,0 +1,24 @@
+{
+  "name": "cloudflare-worker-starter",
+  "version": "1.0.0",
+  "description": "Production-ready Cloudflare Worker starter template",
+  "main": "src/worker.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "cloudflare",
+    "workers",
+    "serverless",
+    "javascript",
+    "auth",
+    "starter"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}

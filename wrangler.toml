@@ -1,0 +1,43 @@
+name = "your-project-name"
+account_id = "YOUR_CLOUDFLARE_ACCOUNT_ID"
+main = "src/worker.js"
+workers_dev = true
+compatibility_date = "2025-06-27"
+
+# Optional: If you need scheduled tasks
+# [triggers]
+# crons = [ "*/5 * * * *" ]
+
+[vars]
+# Email service (Brevo/Sendinblue)
+BREVO_API_KEY = "YOUR_BREVO_API_KEY"
+SENDER_EMAIL = "your-email@domain.com"
+
+# Session management
+SESSION_SECRET = "YOUR_RANDOM_32_CHAR_SECRET"
+
+# Base URL for your app
+BASE_URL = "https://your-project.workers.dev"
+
+# Stripe (optional)
+# STRIPE_SECRET_KEY = "sk_test_or_live_..."
+# STRIPE_WEBHOOK_SECRET = "whsec_..."
+# STRIPE_PRICE_ID = "price_..."
+
+# KV Namespaces (create these in Cloudflare dashboard first)
+[[kv_namespaces]]
+id = "YOUR_SESSIONS_KV_ID"
+binding = "SESSIONS"
+
+[[kv_namespaces]]
+id = "YOUR_USERS_KV_ID"
+binding = "USERS"
+
+[[kv_namespaces]]
+id = "YOUR_AUDIT_KV_ID"
+binding = "AUDIT"
+
+# Add more KV namespaces as needed
+# [[kv_namespaces]]
+# id = "YOUR_DATA_KV_ID"
+# binding = "DATA"
