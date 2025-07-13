@@ -1,6 +1,6 @@
 # 🚀 Cloudflare Workers Starter Pack
 
-[![GitHub](https://img.shields.io/github/license/duabiht/cloudflare-worker-starter)](LICENSE)
+[![GitHub license](https://img.shields.io/github/license/duabiht/cloudflare-worker-starter?style=flat-square)](https://github.com/duabiht/cloudflare-worker-starter/blob/main/LICENSE)
 [![Buy Me a Coffee](https://img.shields.io/badge/buy%20me%20a-coffee-yellow?logo=buy-me-a-coffee&style=flat-square)](https://buymeacoffee.com/duabiht)
 
 A production-ready starter template for Cloudflare Workers with authentication, payments, and common utilities.
