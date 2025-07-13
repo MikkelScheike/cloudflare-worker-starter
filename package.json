@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node src/worker.test.js",
+    "lint": "echo 'Add your preferred linter here (eslint, etc.)'",
+    "format": "echo 'Add your preferred formatter here (prettier, etc.)'"
   },
   "keywords": [
     "cloudflare",
@@ -16,7 +18,7 @@
     "auth",
     "starter"
   ],
-  "author": "Your Name",
+  "author": "duabiht",
   "license": "MIT",
   "devDependencies": {
     "wrangler": "^3.0.0"
