@@ -9,6 +9,64 @@ import { withRateLimit, getClientIP } from './lib/ratelimit.js';
 import { isKVLimitError, createKVLimitErrorResponse } from './lib/kv-utils.js';
 import { getThemeToggleScript, getThemeStyles, getThemeToggleButton } from './lib/theme.js';
 import { validateEmailLegitimacy, getEmailErrorMessage } from './lib/email-validation.js';
+import { sanitizeHtml } from './lib/utils.js';
+
+// Helper: Verify Turnstile token with Cloudflare API
+async function verifyTurnstile(token, ip, secretKey) {
+  const body = new URLSearchParams({
+    secret: secretKey,
+    response: token,
+    ...(ip ? { remoteip: ip } : {})
+  });
+  const resp = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+    method: 'POST',
+    body,
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+  });
+  return resp.json();
+}
+
+// Handler: Contact form POST endpoint
+async function handleContact(request, env) {
+  if (request.method !== 'POST') {
+    return new Response('Method Not Allowed', { status: 405 });
+  }
+  let data;
+  try {
+    data = await request.json();
+  } catch {
+    return new Response('Invalid JSON', { status: 400 });
+  }
+  const { name, email, message, turnstileToken } = data;
+  if (!name || !email || !message || !turnstileToken) {
+    return new Response('Missing fields', { status: 400 });
+  }
+  // Validate email
+  const emailCheck = validateEmailLegitimacy(email);
+  if (!emailCheck.isValid) {
+    return new Response('Invalid email', { status: 400 });
+  }
+  // Verify Turnstile
+  const ip = request.headers.get('CF-Connecting-IP') || undefined;
+  const turnstileSecret = env.TURNSTILE_SECRET_KEY;
+  if (!turnstileSecret) {
+    return new Response('Server misconfigured: missing Turnstile secret', { status: 500 });
+  }
+  const verify = await verifyTurnstile(turnstileToken, ip, turnstileSecret);
+  if (!verify.success) {
+    return new Response('Turnstile verification failed', { status: 403 });
+  }
+  // Send email (replace with your email logic)
+  // Example: send to site owner
+  const ownerEmail = env.SENDER_EMAIL || 'owner@example.com';
+  const subject = `Contact Form Submission from ${sanitizeHtml(name)}`;
+  const body = `Name: ${sanitizeHtml(name)}\nEmail: ${sanitizeHtml(email)}\nMessage:\n${sanitizeHtml(message)}`;
+  // TODO: Replace with your actual email sending function
+  // await sendEmail(ownerEmail, subject, body, env);
+  // For now, just log
+  console.log('Contact form received:', { name, email, message });
+  return new Response('Message sent!', { status: 200 });
+}
 
 // Add security headers to all responses
 function addSecurityHeaders(response) {
@@ -226,7 +284,6 @@ export default {
         // Rate limit signup attempts
         const rateLimitResponse = await withRateLimit(env, request, 'signup', 5, 60 * 60 * 1000); // 5 per hour
         if (rateLimitResponse) return addSecurityHeaders(rateLimitResponse);
-        
         return addSecurityHeaders(await handleSignup(request, env));
       }
       else if (url.pathname === "/login") {
@@ -240,7 +297,6 @@ export default {
           await destroySession(env, session.id);
           await logUserAction(env, 'logout', session.email);
         }
-        
         const response = Response.redirect("/", 302);
         response.headers.set("Set-Cookie", createSessionCookie("", { maxAge: 0 }));
         return addSecurityHeaders(response);
@@ -249,12 +305,13 @@ export default {
         if (!session) {
           return Response.redirect("/login", 302);
         }
-        
         return new Response("Dashboard - TODO", { 
           headers: { "Content-Type": "text/plain; charset=utf-8" } 
         });
       }
-      
+      else if (url.pathname === "/api/contact" && request.method === "POST") {
+        return addSecurityHeaders(await handleContact(request, env));
+      }
       // 404 for unknown routes
       return new Response("Not Found", { 
         status: 404,

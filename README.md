@@ -5,6 +5,7 @@
 
 A production-ready starter template for Cloudflare Workers with authentication, payments, and common utilities.
 
+
 ## Features
 
 - 🔐 **Authentication System**: Signup, login, password reset with email verification
@@ -15,6 +16,40 @@ A production-ready starter template for Cloudflare Workers with authentication, 
 - 📊 **Admin Panel**: User management, audit logs, system stats
 - ⚡ **Performance**: Optimized KV usage, error handling, graceful degradation
 
+## Contact Form API & Turnstile Integration
+
+This starter includes a ready-to-use `/api/contact` POST endpoint for handling contact forms with [Cloudflare Turnstile](https://www.cloudflare.com/products/turnstile/) (CAPTCHA) verification.
+
+**How it works:**
+- Accepts JSON `{ name, email, message, turnstileToken }` from your frontend
+- Verifies the Turnstile token server-side
+- Validates email and message
+- (You can customize to send an email, store in KV, etc.)
+
+**Environment variables required:**
+```toml
+TURNSTILE_SECRET_KEY = "your-turnstile-secret-key"
+SENDER_EMAIL = "your-email@domain.com" # Where to send contact form messages
+```
+
+**Example request:**
+```json
+POST /api/contact
+{
+  "name": "Jane Doe",
+  "email": "jane@example.com",
+  "message": "Hello! I have a question.",
+  "turnstileToken": "token-from-widget"
+}
+```
+
+**Frontend integration:**
+- Add the Turnstile widget to your form: https://developers.cloudflare.com/turnstile/get-started/client-side-rendering/
+- On submit, POST the form data and Turnstile token to `/api/contact`
+
+**Customizing:**
+- Replace the email sending logic in `src/worker.js` (`handleContact`) with your preferred email provider or storage method.
+- Add rate limiting, notifications, or logging as needed.
 ## Quick Start
 
 1. **Clone this repository**
