@@ -102,11 +102,11 @@ addEmailProvider('mycustom', async (env, toEmail, subject, body, senderName, tag
 
 ### Email Validation Utility
 
-Advanced email validation at `src/lib/email-validation.js` to block spam, disposable, and suspicious email addresses.
+Advanced email validation at `src/lib/email-validation.js` to block spam, disposable, and suspicious email addresses. The validator allows short but valid domains (e.g., a.co) and does not reject based on domain length alone.
 
 **Features:**
 - **Dynamic Disposable Domains**: Automatically fetches the latest list from [disposable-email-domains](https://github.com/disposable-email-domains/disposable-email-domains) repository
-- **Smart Caching**: 24-hour cache with KV storage persistence across worker instances  
+- **Smart Caching**: 24-hour cache with KV storage persistence across worker instances
 - **Pattern Detection**: Identifies suspicious email patterns (test emails, bots, etc.)
 - **Audit Logging**: Logs blocked emails for security monitoring
 - **Fallback Protection**: Uses built-in list if external fetch fails
@@ -119,7 +119,8 @@ import { validateEmailLegitimacy, getEmailErrorMessage } from './lib/email-valid
 const result = await validateEmailLegitimacy('user@example.com', env);
 if (!result.isValid) {
   const userMessage = getEmailErrorMessage(result.reason);
-  // Show friendly error: "Temporary email addresses are not allowed..."
+// Show friendly error: "Temporary email addresses are not allowed..."
+// Note: Short but valid domains (like a.co) are accepted.
 }
 ```
 

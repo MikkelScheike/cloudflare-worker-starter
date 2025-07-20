@@ -199,11 +199,6 @@ export async function validateEmailLegitimacy(email, env) {
     }
   }
 
-  // Check domain patterns
-  if (domain.length < 4) {
-    return { isValid: false, reason: 'Domain too short' };
-  }
-
   // Check for domains with only numbers
   if (/^\d+\.\w+$/.test(domain)) {
     return { isValid: false, reason: 'Numeric domains not allowed' };
