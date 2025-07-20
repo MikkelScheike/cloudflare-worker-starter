@@ -49,21 +49,49 @@ POST /api/contact
 
 ### Email Sending Utility
 
-Generic email utility at `src/lib/email.js` for transactional emails via Brevo.
+Provider-agnostic email utility at `src/lib/email.js` supporting multiple email services (Brevo, SES, SMTP2GO, etc.).
 
 **Usage:**
 ```javascript
 import { sendEmail } from './lib/email.js';
 
-// Basic usage
+// Basic usage (uses default provider)
 await sendEmail(env, 'user@example.com', 'Welcome!', 'Hello and welcome!');
 
 // With custom sender and tags
 await sendEmail(env, 'user@example.com', 'Alert', 'System notification', 'MyApp', ['urgent']);
 ```
 
+**Supported Providers:**
+- **Brevo/Sendinblue** (default) - Set `BREVO_API_KEY` in environment
+- **AWS SES** - Set `EMAIL_PROVIDER=ses` and AWS credentials
+- **SMTP2GO** - Set `EMAIL_PROVIDER=smtp2go` and `SMTP2GO_API_KEY`
+- **Custom** - Easy to add your own provider
+
+**Configuration:**
+```toml
+# Choose your email provider (defaults to 'brevo')
+EMAIL_PROVIDER = "brevo"  # or "ses", "smtp2go", etc.
+
+# Provider-specific credentials
+BREVO_API_KEY = "xkeysib-..."      # For Brevo
+SMTP2GO_API_KEY = "api-..."        # For SMTP2GO
+# AWS credentials would go here for SES
+```
+
+**Adding Custom Providers:**
+```javascript
+import { addEmailProvider } from './lib/email.js';
+
+// Add your custom email service
+addEmailProvider('mycustom', async (env, toEmail, subject, body, senderName, tags) => {
+  // Your implementation here
+  return true; // or false if failed
+});
+```
+
 **Parameters:**
-- `env` - Environment object with `BREVO_API_KEY` and `SENDER_EMAIL`
+- `env` - Environment object with provider credentials and `SENDER_EMAIL`
 - `toEmail` - Recipient email address
 - `subject` - Email subject line
 - `body` - Plain text email content
