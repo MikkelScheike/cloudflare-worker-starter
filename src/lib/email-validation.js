@@ -3,6 +3,8 @@
  * Production-tested patterns to prevent fake signups and bot registrations
  */
 
+import { getConfig } from './config.js';
+
 /**
  * Log email validation events for audit purposes
  * @param {object} env - Environment object with KV bindings
@@ -32,7 +34,8 @@ export async function logEmailValidation(env, email, result, ip, action = 'unkno
     };
     
     const key = `email_validation_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    await env.AUDIT.put(key, JSON.stringify(logEntry), { expirationTtl: 30 * 24 * 60 * 60 }); // 30 days
+    const config = getConfig(env);
+    await env.AUDIT.put(key, JSON.stringify(logEntry), { expirationTtl: config.logging.emailValidationTtl });
   } catch (error) {
     if (error.message && error.message.includes('KV put() limit exceeded')) {
       console.warn('KV write limit exceeded, skipping email validation log');
@@ -53,7 +56,15 @@ const FALLBACK_DISPOSABLE_DOMAINS = new Set([
 // Cache for the external disposable domains list
 let DISPOSABLE_DOMAINS_CACHE = null;
 let CACHE_TIMESTAMP = 0;
-const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+
+/**
+ * Get cache duration from environment configuration
+ * @param {object} env - Environment object
+ * @returns {number} - Cache duration in milliseconds
+ */
+function getCacheDuration(env) {
+  return getConfig(env).emailValidation.cacheDuration;
+}
 
 /**
  * Fetches the latest disposable email domains from external repository
@@ -64,7 +75,8 @@ async function fetchDisposableDomains(env) {
   try {
     // Check if we have a valid cache
     const now = Date.now();
-    if (DISPOSABLE_DOMAINS_CACHE && (now - CACHE_TIMESTAMP) < CACHE_DURATION) {
+    const cacheDuration = getCacheDuration(env);
+    if (DISPOSABLE_DOMAINS_CACHE && (now - CACHE_TIMESTAMP) < cacheDuration) {
       return DISPOSABLE_DOMAINS_CACHE;
     }
 
@@ -75,7 +87,8 @@ async function fetchDisposableDomains(env) {
         const kvCache = await env.SESSIONS.get('disposable_domains_cache');
         if (kvCache) {
           const parsed = JSON.parse(kvCache);
-          if ((now - parsed.timestamp) < CACHE_DURATION) {
+          const cacheDuration = getCacheDuration(env);
+          if ((now - parsed.timestamp) < cacheDuration) {
             DISPOSABLE_DOMAINS_CACHE = new Set(parsed.domains);
             CACHE_TIMESTAMP = parsed.timestamp;
             return DISPOSABLE_DOMAINS_CACHE;
@@ -117,10 +130,11 @@ async function fetchDisposableDomains(env) {
     // Store in KV for persistence across worker instances
     if (env.SESSIONS) {
       try {
+        const cacheDuration = getCacheDuration(env);
         await env.SESSIONS.put('disposable_domains_cache', JSON.stringify({
           domains: Array.from(DISPOSABLE_DOMAINS_CACHE),
           timestamp: CACHE_TIMESTAMP
-        }), { expirationTtl: Math.floor(CACHE_DURATION / 1000) });
+        }), { expirationTtl: Math.floor(cacheDuration / 1000) });
       } catch (kvError) {
         console.warn('Failed to cache domains in KV:', kvError.message);
       }

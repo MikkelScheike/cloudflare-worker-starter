@@ -15,9 +15,33 @@ SENDER_EMAIL = "your-email@domain.com"
 
 # Session management
 SESSION_SECRET = "YOUR_RANDOM_32_CHAR_SECRET"
+SESSION_MAX_AGE = "604800000"          # 7 days in milliseconds (optional, defaults shown)
+SESSION_TIMEOUT = "1800000"            # 30 minutes in milliseconds
+SESSION_EXPIRATION_TTL = "604800"      # 7 days in seconds
 
 # Base URL for your app
 BASE_URL = "https://your-project.workers.dev"
+
+# Rate limiting (all optional, defaults shown)
+RATE_LIMIT_CONTACT_LIMIT = "5"         # Contact form submissions per window
+RATE_LIMIT_CONTACT_WINDOW = "900000"   # 15 minutes
+RATE_LIMIT_SIGNUP_LIMIT = "3"          # Signups per window
+RATE_LIMIT_SIGNUP_WINDOW = "3600000"   # 1 hour
+RATE_LIMIT_LOGIN_LIMIT = "10"          # Login attempts per window
+RATE_LIMIT_LOGIN_WINDOW = "900000"     # 15 minutes
+
+# Logging configuration (all optional, defaults shown)
+MAX_LOGS_PER_HOUR = "100"              # Throttled logger limit
+AUDIT_LOG_TTL = "2592000"              # 30 days in seconds
+EMAIL_VALIDATION_LOG_TTL = "2592000"   # 30 days in seconds
+
+# Email validation cache (optional, defaults shown)
+EMAIL_CACHE_DURATION = "86400000"      # 24 hours in milliseconds
+EMAIL_CACHE_REFRESH_INTERVAL = "3600000" # 1 hour in milliseconds
+
+# Security (optional)
+HONEYPOT_FIELD_NAME = "website"        # Honeypot field name
+TURNSTILE_SECRET_KEY = "your-turnstile-secret-key"  # Optional for contact form
 
 # Stripe (optional)
 # STRIPE_SECRET_KEY = "sk_test_or_live_..."

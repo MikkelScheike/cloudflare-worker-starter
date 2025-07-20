@@ -3,6 +3,8 @@
  * Production-ready session handling with KV storage and security features
  */
 
+import { getConfig } from './config.js';
+
 export async function getSession(request, env) {
   const cookie = request.headers.get("Cookie");
   if (!cookie) return null;
@@ -22,9 +24,9 @@ export async function getSession(request, env) {
     return null;
   }
   
-  // Check session timeout (30 minutes)
-  const sessionTimeout = 30 * 60 * 1000;
-  if (session.lastActivity && Date.now() - session.lastActivity > sessionTimeout) {
+  // Check session timeout
+  const config = getConfig(env);
+  if (session.lastActivity && Date.now() - session.lastActivity > config.session.timeout) {
     await destroySession(env, id);
     return null;
   }
@@ -37,7 +39,7 @@ export async function getSession(request, env) {
     session.lastActivity = Date.now();
     try {
       await env.SESSIONS.put(id, JSON.stringify(session), {
-        expirationTtl: 604800 // 7 days in seconds
+        expirationTtl: getConfig(env).session.expirationTtl
       });
     } catch (error) {
       if (error.message && error.message.includes('KV put() limit exceeded')) {
@@ -56,18 +58,19 @@ export async function getSession(request, env) {
 export async function createSession(env, email, options = {}) {
   const sessionId = crypto.randomUUID();
   const now = Date.now();
+  const config = getConfig(env);
   
   const sessionData = {
     email,
     createdAt: now,
     lastActivity: now,
-    expiresAt: now + (options.maxAge || 604800000), // 7 days default
+    expiresAt: now + (options.maxAge || config.session.maxAge),
     userAgent: options.userAgent || "",
     ip: options.ip || ""
   };
   
   await env.SESSIONS.put(sessionId, JSON.stringify(sessionData), {
-    expirationTtl: 604800 // 7 days in seconds
+    expirationTtl: config.session.expirationTtl
   });
   
   return sessionId;

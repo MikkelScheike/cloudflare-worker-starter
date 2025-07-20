@@ -165,9 +165,38 @@ const signupForm = renderAuthForm({
 });
 ```
 
-### Error Response System
+### Configuration System
 
-Centralized error handling at `src/lib/error-responses.js` for consistent error pages.
+Centralized configuration system at `src/lib/config.js` for environment-based settings.
+
+**Features:**
+- **Environment-Based**: All limits and settings configurable via environment variables
+- **Type Safety**: Automatic type conversion and validation
+- **Sensible Defaults**: Production-ready defaults for all settings
+- **Runtime Validation**: Validates required environment variables
+
+**Usage:**
+```javascript
+import { getConfig, validateRequiredEnv } from './lib/config.js';
+
+// Get full configuration
+const config = getConfig(env);
+console.log(config.session.timeout); // 1800000 (30 minutes)
+
+// Validate environment
+const missing = validateRequiredEnv(env);
+if (missing.length > 0) {
+  throw new Error(`Missing required env vars: ${missing.join(', ')}`);
+}
+```
+
+**Configuration Categories:**
+- **Session**: Timeout, expiration, max age settings
+- **Rate Limiting**: Per-endpoint limits and time windows  
+- **Logging**: Audit log retention and throttling limits
+- **Email Validation**: Cache duration and refresh intervals
+- **Security**: Honeypot fields, feature toggles
+- **Performance**: KV retry logic and timeouts
 
 **Features:**
 - **Standardized Errors**: Pre-configured templates for all HTTP status codes
@@ -261,6 +290,7 @@ src/
 └── lib/
     ├── audit.js           # Security logging
     ├── auth.js            # Authentication system
+    ├── config.js          # Configuration system
     ├── email.js           # Email sending utility (Brevo/Sendinblue)
     ├── email-validation.js # Spam/disposable email filtering
     ├── error-responses.js  # Modular error page system

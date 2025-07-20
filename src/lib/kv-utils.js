@@ -4,6 +4,7 @@
  */
 
 import { createKVLimitErrorResponse } from './error-responses.js';
+import { getConfig } from './config.js';
 
 /**
  * Check if an error is a KV limit exceeded error
@@ -40,14 +41,17 @@ export async function safeKVWrite(writeOperation, operation = 'KV write') {
  * Create a rate-limited logger that reduces writes when approaching limits
  */
 export class ThrottledLogger {
-  constructor(env, maxLogsPerHour = 100) {
+  constructor(env, maxLogsPerHour = null) {
     this.env = env;
-    this.maxLogsPerHour = maxLogsPerHour;
+    const config = getConfig(env);
+    this.maxLogsPerHour = maxLogsPerHour || config.logging.maxLogsPerHour;
     this.logCount = 0;
     this.hourStart = Date.now();
   }
 
-  async log(type, data, expirationTtl = 86400) {
+  async log(type, data, expirationTtl = null) {
+    const config = getConfig(this.env);
+    const ttl = expirationTtl || config.logging.auditLogTtl;
     const now = Date.now();
     
     // Reset counter every hour
@@ -67,7 +71,7 @@ export class ThrottledLogger {
         timestamp: new Date().toISOString(),
         type,
         ...data
-      }), { expirationTtl });
+      }), { expirationTtl: ttl });
     }, `throttled log: ${type}`);
 
     if (success) {

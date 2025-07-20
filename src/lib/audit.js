@@ -4,6 +4,7 @@
  */
 
 import { safeKVWrite } from './kv-utils.js';
+import { getConfig } from './config.js';
 
 export async function logSecurityEvent(env, event, details = {}) {
   try {
@@ -13,6 +14,7 @@ export async function logSecurityEvent(env, event, details = {}) {
       return;
     }
     
+    const config = getConfig(env);
     const now = new Date().toISOString();
     const logEntry = {
       event,
@@ -26,7 +28,7 @@ export async function logSecurityEvent(env, event, details = {}) {
       await env.AUDIT.put(
         `audit:${now}:${Math.random().toString(36).slice(2, 8)}`,
         JSON.stringify(logEntry),
-        { expirationTtl: 30 * 24 * 60 * 60 } // 30 days
+        { expirationTtl: config.logging.auditLogTtl }
       );
     }, `security event: ${event}`);
   } catch (error) {
