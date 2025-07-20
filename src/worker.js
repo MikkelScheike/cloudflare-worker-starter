@@ -7,9 +7,10 @@ import { getSession, createSession, destroySession, createSessionCookie } from '
 import { logSecurityEvent, logUserAction } from './lib/audit.js';
 import { withRateLimit, getClientIP } from './lib/ratelimit.js';
 import { isKVLimitError, createKVLimitErrorResponse } from './lib/kv-utils.js';
-import { getThemeToggleScript, getThemeStyles, getThemeToggleButton } from './lib/theme.js';
 import { validateEmailLegitimacy, getEmailErrorMessage } from './lib/email-validation.js';
 import { sanitizeHtml } from './lib/utils.js';
+import { renderHomePage, renderAuthForm } from './lib/templates.js';
+import { ErrorResponses } from './lib/error-responses.js';
 
 // Helper: Verify Turnstile token with Cloudflare API
 async function verifyTurnstile(token, ip, secretKey) {
@@ -92,89 +93,8 @@ function addSecurityHeaders(response) {
 
 // Basic home page
 async function handleHome(request, env, session) {
-  return new Response(`
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Your App</title>
-      <style>
-        ${getThemeStyles()}
-        
-        body {
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-          margin: 0;
-          padding: 40px 20px;
-          line-height: 1.6;
-        }
-        
-        .container {
-          max-width: 800px;
-          margin: 0 auto;
-        }
-        
-        .card {
-          padding: 30px;
-          border-radius: 12px;
-          margin-bottom: 20px;
-        }
-        
-        .btn-primary {
-          background: var(--accent-primary);
-          color: white;
-          padding: 12px 24px;
-          border: none;
-          border-radius: 8px;
-          text-decoration: none;
-          display: inline-block;
-          font-weight: 500;
-          cursor: pointer;
-        }
-        
-        .btn-primary:hover {
-          background: var(--accent-hover);
-        }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="card">
-          <h1>🚀 Your Cloudflare Worker App</h1>
-          <p>Welcome to your production-ready Cloudflare Worker starter template!</p>
-          
-          ${session ? `
-            <p>Hello, <strong>${session.email}</strong>!</p>
-            <a href="/dashboard" class="btn-primary">Dashboard</a>
-            <a href="/logout" class="btn-primary">Logout</a>
-          ` : `
-            <p>Get started by signing up or logging in.</p>
-            <a href="/signup" class="btn-primary">Sign Up</a>
-            <a href="/login" class="btn-primary">Login</a>
-          `}
-        </div>
-        
-        <div class="card">
-          <h2>✨ Features Included</h2>
-          <ul>
-            <li>🔐 Complete authentication system</li>
-            <li>📧 Email validation and spam protection</li>
-            <li>🛡️ Rate limiting and security features</li>
-            <li>🎨 Dark/light theme toggle</li>
-            <li>📊 Audit logging</li>
-            <li>⚡ Optimized KV usage</li>
-          </ul>
-        </div>
-      </div>
-      
-      ${getThemeToggleButton()}
-      
-      <script>
-        ${getThemeToggleScript()}
-      </script>
-    </body>
-    </html>
-  `, {
+  const html = renderHomePage(session);
+  return new Response(html, {
     headers: { "Content-Type": "text/html; charset=utf-8" }
   });
 }
@@ -182,40 +102,18 @@ async function handleHome(request, env, session) {
 // Basic signup form
 async function handleSignup(request, env) {
   if (request.method === "GET") {
-    return new Response(`
-      <!DOCTYPE html>
-      <html lang="en">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Sign Up</title>
-        <style>
-          ${getThemeStyles()}
-          body { font-family: system-ui, sans-serif; padding: 40px 20px; }
-          .container { max-width: 400px; margin: 0 auto; }
-          .card { padding: 30px; border-radius: 12px; }
-          input { width: 100%; padding: 12px; margin: 8px 0; border-radius: 6px; }
-          .btn-primary { width: 100%; padding: 12px; border: none; border-radius: 6px; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="card">
-            <h1>Sign Up</h1>
-            <form method="POST">
-              <input type="email" name="email" placeholder="Email" required>
-              <input type="password" name="password" placeholder="Password" required>
-              <input type="text" name="website" style="display: none;"> <!-- Honeypot -->
-              <button type="submit" class="btn-primary">Create Account</button>
-            </form>
-            <p><a href="/login" class="link">Already have an account? Login</a></p>
-          </div>
-        </div>
-        ${getThemeToggleButton()}
-        <script>${getThemeToggleScript()}</script>
-      </body>
-      </html>
-    `, {
+    const html = renderAuthForm({
+      title: 'Sign Up',
+      action: '/signup',
+      submitText: 'Create Account',
+      extraFields: '<input type="text" name="website" style="display: none;"> <!-- Honeypot -->',
+      alternateLink: {
+        href: '/login',
+        text: 'Already have an account? Login'
+      }
+    });
+    
+    return new Response(html, {
       headers: { "Content-Type": "text/html; charset=utf-8" }
     });
   }
@@ -319,10 +217,7 @@ export default {
         return addSecurityHeaders(await handleContact(request, env));
       }
       // 404 for unknown routes
-      return new Response("Not Found", { 
-        status: 404,
-        headers: { "Content-Type": "text/plain; charset=utf-8" } 
-      });
+      return addSecurityHeaders(ErrorResponses.notFound());
       
     } catch (error) {
       console.error("Worker error:", error);
@@ -332,10 +227,7 @@ export default {
         return addSecurityHeaders(createKVLimitErrorResponse());
       }
       
-      return new Response(`Server Error: ${error.message}`, {
-        status: 500,
-        headers: { "Content-Type": "text/plain; charset=utf-8" }
-      });
+      return addSecurityHeaders(ErrorResponses.serverError(error.message));
     }
   },
   

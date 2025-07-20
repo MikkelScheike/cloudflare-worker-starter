@@ -132,6 +132,65 @@ if (!result.isValid) {
 
 **Configuration:**
 No configuration needed - works out of the box with automatic updates.
+
+### Template System
+
+Modular HTML template system at `src/lib/templates.js` for maintainable UI components.
+
+**Features:**
+- **Theme Integration**: Automatically includes theme styles and toggle functionality
+- **Consistent Styling**: Base styles applied across all pages
+- **Reusable Components**: Authentication forms, error pages, dashboard templates
+- **Easy Customization**: Centralized template management
+
+**Usage:**
+```javascript
+import { renderPage, renderAuthForm, renderHomePage } from './lib/templates.js';
+
+// Basic page template
+const html = renderPage({
+  title: 'My Page',
+  content: '<h1>Hello World</h1>',
+  styles: 'body { background: red; }',
+  scripts: 'console.log("loaded");'
+});
+
+// Authentication form
+const signupForm = renderAuthForm({
+  title: 'Sign Up',
+  action: '/signup',
+  submitText: 'Create Account',
+  extraFields: '<input type="text" name="website" style="display: none;">',
+  alternateLink: { href: '/login', text: 'Already have an account?' }
+});
+```
+
+### Error Response System
+
+Centralized error handling at `src/lib/error-responses.js` for consistent error pages.
+
+**Features:**
+- **Standardized Errors**: Pre-configured templates for all HTTP status codes
+- **Customizable**: Override messages, add additional info, customize actions
+- **Theme-Aware**: Automatically uses your theme system
+- **SEO-Friendly**: Proper HTTP status codes and meta information
+
+**Usage:**
+```javascript
+import { ErrorResponses, createErrorResponse } from './lib/error-responses.js';
+
+// Quick error responses
+return ErrorResponses.notFound('This resource was moved');
+return ErrorResponses.unauthorized('Please log in first');
+return ErrorResponses.serverError('Database connection failed');
+
+// Custom error response
+return createErrorResponse(429, {
+  heading: 'Slow Down!',
+  message: 'Too many requests from your IP address.',
+  additionalInfo: '<p>Limit resets in 15 minutes.</p>'
+});
+```
 ## 🚀 Quick Start
 
 Get up and running in minutes:
@@ -204,9 +263,11 @@ src/
     ├── auth.js            # Authentication system
     ├── email.js           # Email sending utility (Brevo/Sendinblue)
     ├── email-validation.js # Spam/disposable email filtering
+    ├── error-responses.js  # Modular error page system
     ├── kv-utils.js        # KV optimization utilities
     ├── ratelimit.js       # Rate limiting middleware
     ├── session.js         # Session management
+    ├── templates.js       # HTML template system
     ├── theme.js           # Dark/light theme system
     └── utils.js           # General utilities
 ```
