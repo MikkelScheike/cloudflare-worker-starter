@@ -42,9 +42,15 @@ async function handleContact(request, env) {
     return new Response('Missing fields', { status: 400 });
   }
   // Validate email
-  const emailCheck = validateEmailLegitimacy(email);
+  const emailCheck = await validateEmailLegitimacy(email, env);
   if (!emailCheck.isValid) {
-    return new Response('Invalid email', { status: 400 });
+    return new Response(JSON.stringify({ 
+      error: 'Invalid email', 
+      message: getEmailErrorMessage(emailCheck.reason) 
+    }), { 
+      status: 400,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
   // Verify Turnstile
   const ip = request.headers.get('CF-Connecting-IP') || undefined;
@@ -229,7 +235,7 @@ async function handleSignup(request, env) {
   }
   
   // Validate email
-  const emailValidation = validateEmailLegitimacy(email);
+  const emailValidation = await validateEmailLegitimacy(email, env);
   if (!emailValidation.isValid) {
     const userMessage = getEmailErrorMessage(emailValidation.reason);
     return new Response(userMessage, { 

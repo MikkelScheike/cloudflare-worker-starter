@@ -42,37 +42,104 @@ export async function logEmailValidation(env, email, result, ip, action = 'unkno
   }
 }
 
-// Common disposable/temporary email domains
-const DISPOSABLE_EMAIL_DOMAINS = new Set([
-  // 10MinuteMail and similar
-  '10minutemail.com', '10minutemail.net', '10minutemail.org',
-  'guerrillamail.com', 'guerrillamail.net', 'guerrillamail.org',
-  'mailinator.com', 'mailinator.net', 'mailinator2.com',
-  'tempmail.org', 'temp-mail.org', 'temporary-mail.net',
-  'throwaway.email', 'trashmail.com', 'yopmail.com',
-  'maildrop.cc', 'sharklasers.com', 'grr.la',
-  'dispostable.com', 'tempail.com', 'getnada.com',
-  
-  // Fake/test domains
-  'example.com', 'example.org', 'test.com', 'test.org',
-  'fake.com', 'invalid.com', 'localhost.com',
-  
-  // Common spam domains
-  'spam4.me', 'spamgourmet.com', 'spamhole.com',
-  'emailondeck.com', 'fakeinbox.com', 'mytrashmail.com',
-  'no-spam.ws', 'nospam.ze.tc', 'deadaddress.com',
-  
-  // More disposable services
-  'mohmal.com', 'rootfest.net', 'anonymbox.com',
-  'bugmenot.com', 'deadfake.cf', 'mailcatch.com',
-  'mailscrap.com', 'us.to', 'mvrht.com',
-  
-  // Single-letter domains (often suspicious)
-  'a.com', 'b.com', 'c.com', 'd.com', 'e.com', 'f.com', 'g.com',
-  'h.com', 'i.com', 'j.com', 'k.com', 'l.com', 'm.com', 'n.com',
-  'o.com', 'p.com', 'q.com', 'r.com', 's.com', 't.com', 'u.com',
-  'v.com', 'w.com', 'x.com', 'y.com', 'z.com'
+// Default disposable email domains (fallback if external fetch fails)
+const FALLBACK_DISPOSABLE_DOMAINS = new Set([
+  // Most common disposable services
+  '10minutemail.com', 'guerrillamail.com', 'mailinator.com',
+  'tempmail.org', 'throwaway.email', 'yopmail.com', 'maildrop.cc',
+  'example.com', 'test.com', 'fake.com', 'localhost.com'
 ]);
+
+// Cache for the external disposable domains list
+let DISPOSABLE_DOMAINS_CACHE = null;
+let CACHE_TIMESTAMP = 0;
+const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+
+/**
+ * Fetches the latest disposable email domains from external repository
+ * @param {object} env - Environment object
+ * @returns {Promise<Set>} - Set of disposable domains
+ */
+async function fetchDisposableDomains(env) {
+  try {
+    // Check if we have a valid cache
+    const now = Date.now();
+    if (DISPOSABLE_DOMAINS_CACHE && (now - CACHE_TIMESTAMP) < CACHE_DURATION) {
+      return DISPOSABLE_DOMAINS_CACHE;
+    }
+
+    // Try to get cached domains from KV storage first
+    let cachedDomains = null;
+    if (env.SESSIONS) {
+      try {
+        const kvCache = await env.SESSIONS.get('disposable_domains_cache');
+        if (kvCache) {
+          const parsed = JSON.parse(kvCache);
+          if ((now - parsed.timestamp) < CACHE_DURATION) {
+            DISPOSABLE_DOMAINS_CACHE = new Set(parsed.domains);
+            CACHE_TIMESTAMP = parsed.timestamp;
+            return DISPOSABLE_DOMAINS_CACHE;
+          }
+        }
+      } catch (kvError) {
+        console.warn('Failed to get cached domains from KV:', kvError.message);
+      }
+    }
+
+    // Fetch from external source
+    const response = await fetch(
+      'https://raw.githubusercontent.com/disposable-email-domains/disposable-email-domains/main/disposable_email_blocklist.conf',
+      {
+        headers: {
+          'User-Agent': 'Cloudflare-Worker-Email-Validator/1.0'
+        }
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const text = await response.text();
+    const domains = text
+      .split('\n')
+      .map(line => line.trim().toLowerCase())
+      .filter(line => line && !line.startsWith('#') && line.includes('.'))
+      .filter(domain => {
+        // Basic domain validation
+        return /^[a-z0-9.-]+\.[a-z]{2,}$/.test(domain);
+      });
+
+    // Update cache
+    DISPOSABLE_DOMAINS_CACHE = new Set(domains);
+    CACHE_TIMESTAMP = now;
+
+    // Store in KV for persistence across worker instances
+    if (env.SESSIONS) {
+      try {
+        await env.SESSIONS.put('disposable_domains_cache', JSON.stringify({
+          domains: Array.from(DISPOSABLE_DOMAINS_CACHE),
+          timestamp: CACHE_TIMESTAMP
+        }), { expirationTtl: Math.floor(CACHE_DURATION / 1000) });
+      } catch (kvError) {
+        console.warn('Failed to cache domains in KV:', kvError.message);
+      }
+    }
+
+    console.log(`Updated disposable domains cache: ${DISPOSABLE_DOMAINS_CACHE.size} domains`);
+    return DISPOSABLE_DOMAINS_CACHE;
+
+  } catch (error) {
+    console.warn('Failed to fetch disposable domains:', error.message);
+    
+    // Return cached version if available, otherwise fallback
+    if (DISPOSABLE_DOMAINS_CACHE) {
+      return DISPOSABLE_DOMAINS_CACHE;
+    }
+    
+    return FALLBACK_DISPOSABLE_DOMAINS;
+  }
+}
 
 // Suspicious patterns in email addresses
 const SUSPICIOUS_PATTERNS = [
@@ -95,9 +162,10 @@ const SUSPICIOUS_PATTERNS = [
 /**
  * Validates if an email address is legitimate (not spam/disposable)
  * @param {string} email - Email address to validate
- * @returns {object} - { isValid: boolean, reason?: string }
+ * @param {object} env - Environment object for fetching disposable domains
+ * @returns {Promise<object>} - { isValid: boolean, reason?: string }
  */
-export function validateEmailLegitimacy(email) {
+export async function validateEmailLegitimacy(email, env) {
   if (!email || typeof email !== 'string') {
     return { isValid: false, reason: 'Invalid email format' };
   }
@@ -116,8 +184,11 @@ export function validateEmailLegitimacy(email) {
     return { isValid: false, reason: 'Invalid domain' };
   }
 
+  // Get up-to-date disposable email domains list
+  const disposableDomains = await fetchDisposableDomains(env);
+  
   // Check against disposable email domains
-  if (DISPOSABLE_EMAIL_DOMAINS.has(domain)) {
+  if (disposableDomains.has(domain)) {
     return { isValid: false, reason: 'Disposable email address not allowed' };
   }
 

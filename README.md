@@ -99,6 +99,38 @@ addEmailProvider('mycustom', async (env, toEmail, subject, body, senderName, tag
 - `tags` - Optional string or array for email tracking
 
 **Returns:** `Promise<boolean>` - `true` if sent successfully
+
+### Email Validation Utility
+
+Advanced email validation at `src/lib/email-validation.js` to block spam, disposable, and suspicious email addresses.
+
+**Features:**
+- **Dynamic Disposable Domains**: Automatically fetches the latest list from [disposable-email-domains](https://github.com/disposable-email-domains/disposable-email-domains) repository
+- **Smart Caching**: 24-hour cache with KV storage persistence across worker instances  
+- **Pattern Detection**: Identifies suspicious email patterns (test emails, bots, etc.)
+- **Audit Logging**: Logs blocked emails for security monitoring
+- **Fallback Protection**: Uses built-in list if external fetch fails
+
+**Usage:**
+```javascript
+import { validateEmailLegitimacy, getEmailErrorMessage } from './lib/email-validation.js';
+
+// Validate email (async - fetches latest disposable domains)
+const result = await validateEmailLegitimacy('user@example.com', env);
+if (!result.isValid) {
+  const userMessage = getEmailErrorMessage(result.reason);
+  // Show friendly error: "Temporary email addresses are not allowed..."
+}
+```
+
+**Disposable Domains List:**
+- Automatically updated from the community-maintained [disposable-email-domains](https://github.com/disposable-email-domains/disposable-email-domains) repository
+- 24-hour cache prevents excessive API calls  
+- Includes 2000+ disposable email services
+- Falls back to built-in list if external fetch fails
+
+**Configuration:**
+No configuration needed - works out of the box with automatic updates.
 ## 🚀 Quick Start
 
 Get up and running in minutes:
